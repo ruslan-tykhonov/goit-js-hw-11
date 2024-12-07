@@ -1,51 +1,59 @@
-import './css/loader.css';
-
 import iziToast from 'izitoast';
 import 'izitoast/dist/css/iziToast.min.css';
+import SimpleLightbox from 'simplelightbox';
+import 'simplelightbox/dist/simple-lightbox.min.css';
+import { fetchImg } from './js/pixabay-api';
+import { createGallery, clearGallery } from './js/render-functions';
 
-import { fetchFoo } from './js/pixabay-api.js';
+const form = document.querySelector('.search-form');
+const loader = document.querySelector('.loader');
+loader.hidden = true;
 
-const form = document.querySelector('.form');
-const gallery = document.querySelector('.gallery');
+form.addEventListener('submit', searchImg);
 
-function showLoader() {
-  loader.style.display = 'block';
-}
-
-export function hideLoader() {
-  loader.style.display = 'none';
-}
-
-if (!form.dataset.listenerAdded) {
-  form.addEventListener('submit', event => {
-    event.preventDefault();
-
-    const input = event.target.elements.search;
-    const value = input.value.trim();
-
-    showLoader();
-
-    if (!value) {
-      iziToast.warning({
-        title: 'Warning',
-        message: 'Please enter a search query!',
-        position: 'topRight',
-        backgroundColor: '#f39c12',
-        messageColor: '#ffffff',
-        messageSize: '16px',
-        titleColor: '#ffffff',
-      });
-
-      gallery.innerHTML = '';
-      hideLoader();
-      return;
-    } else {
-      showLoader();
-      fetchFoo(value);
-    }
-
+function searchImg(event) {
+  event.preventDefault();
+  const query = event.target.elements.image.value.trim();
+  if (!query) {
+    iziToast.warning({
+      message: 'Warning! The form is empty, please fill searching form.',
+      position: 'topRight',
+    });
     form.reset();
-  });
+    return;
+  }
 
-  form.dataset.listenerAdded = true;
+  clearGallery();
+  form.reset();
+
+  loader.hidden = false;
+
+  fetchImg(query)
+    .then(data => {
+      if (data.hits.length === 0) {
+        iziToast.error({
+          message:
+            'Sorry, there are no images matching your search query. Please try again!',
+          position: 'topRight',
+        });
+        return;
+      }
+
+      createGallery(data.hits);
+      let lightbox = new SimpleLightbox('.gallery-link', {
+        captionsData: 'alt',
+        captionDelay: 250,
+      });
+      lightbox.refresh();
+    })
+    .catch(error => {
+      iziToast.error({
+        message: 'Error!',
+        position: 'topRight',
+      });
+      console.error(error);
+    })
+    .finally(() => {
+      loader.hidden = true;
+    });
 }
